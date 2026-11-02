@@ -1,0 +1,19 @@
+Windows Registry Editor Version 5.00
+
+; Tells the launcher where the WebView2 runtime is.
+[HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}]
+"pv"="@WEBVIEW2_VERSION@"
+"name"="Microsoft Edge WebView2 Runtime"
+"location"="C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application"
+
+; With the flags from webview2-flags.c, this keeps WebView2 off Wine's DirectComposition stub.
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\msedgewebview2.exe]
+"Version"="win8"
+
+; Loads Custom Shaders Patch (dwrite.dll in the game folder), for the game only.
+[HKEY_CURRENT_USER\Software\Wine\AppDefaults\acs.exe\DllOverrides]
+"dwrite"="native,builtin"
+
+; Lets the launcher see who is signed in to Steam. The value is SteamID64 minus 76561197960265728, in hex.
+[HKEY_CURRENT_USER\Software\Valve\Steam\ActiveProcess]
+"ActiveUser"=dword:@STEAM_ACCOUNT_HEX@

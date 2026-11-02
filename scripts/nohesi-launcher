@@ -1,0 +1,53 @@
+#!/bin/bash
+# Steam launch wrapper: starts the No Hesi Launcher in Assetto Corsa's Proton prefix.
+#
+# Set Assetto Corsa to Proton 10.0 in Steam, with these launch options:
+#   ~/.local/bin/nohesi-launcher %command%
+STATE=$HOME/.local/share/nohesi-launcher
+
+if [ $# -eq 0 ]; then
+    echo "Start this through Steam: set it as Assetto Corsa's launch options, followed by %command%." >&2
+    exit 1
+fi
+
+LIB=$(cat "$STATE/library") || exit 1
+C=$LIB/steamapps/compatdata/244210/pfx/drive_c
+GAME=$LIB/steamapps/common/assettocorsa
+EXE="$C/users/steamuser/AppData/Local/NoHesi Launcher/NoHesiLauncher.exe"
+
+# Uncapped frames starve the desktop compositor, and xalia burns CPU while the launcher is open.
+export DXVK_FRAME_RATE=${DXVK_FRAME_RATE:-120} PROTON_USE_XALIA=0
+
+# Point the launcher at a copy of the WebView2 folder whose browser is our stand-in, which adds the flags Wine needs.
+WV_ROOT="$C/Program Files (x86)/Microsoft/EdgeWebView/Application"
+WV=$(ls "$WV_ROOT" | grep -E '^[0-9]+\.' | sort -V | tail -1)
+STANDIN="$C/nohesi-webview2"
+mkdir -p "$STANDIN"
+for entry in "$WV_ROOT/$WV"/*; do
+    [ "${entry##*/}" = msedgewebview2.exe ] || ln -sfn "$entry" "$STANDIN/${entry##*/}"
+done
+cp -f "$STATE/webview2-flags.exe" "$STANDIN/msedgewebview2.exe"
+export WEBVIEW2_BROWSER_EXECUTABLE_FOLDER='C:\nohesi-webview2'
+export NOHESI_REAL_WEBVIEW2="C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\$WV\\msedgewebview2.exe"
+
+# Proton 10 can't read acs.pdb, so Custom Shaders Patch relies on this symbol map from make-symbol-map.sh.
+mkdir -p "$GAME/cache"
+if [ ! -f "$GAME/cache/memory_layout.bin" ] && [ -f "$STATE/memory_layout.bin" ]; then
+    cp "$STATE/memory_layout.bin" "$GAME/cache/memory_layout.bin"
+fi
+
+# Let the launcher find the game through the prefix's stub Steam folder.
+STUB="$C/Program Files (x86)/Steam/steamapps"
+mkdir -p "$STUB/common"
+ln -sfn "$GAME" "$STUB/common/assettocorsa"
+ln -sf "$LIB/steamapps/appmanifest_244210.acf" "$STUB/appmanifest_244210.acf"
+
+# Keep Steam's Proton command line, and swap the game's launcher for No Hesi's.
+args=()
+for a in "$@"; do
+    case "${a,,}" in
+        *assettocorsa.exe|*acs.exe) args+=("$EXE") ;;
+        *) args+=("$a") ;;
+    esac
+done
+exec "${args[@]}"
